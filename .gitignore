@@ -1,0 +1,5 @@
+*.pyc
+*.mat
+*.swp
+dataset/BDD100k_list
+wandb
