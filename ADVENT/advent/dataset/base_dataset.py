@@ -6,8 +6,9 @@ from torch.utils import data
 
 
 class BaseDataset(data.Dataset):
-    def __init__(self, root, list_path, set_,
+    def __init__(self, args, root, list_path, set_,
                  max_iters, image_size, labels_size, mean):
+        self.args = args
         self.root = Path(root)
         self.set = set_
         self.list_path = list_path.format(self.set)
@@ -34,7 +35,14 @@ class BaseDataset(data.Dataset):
 
     def preprocess(self, image):
         image = image[:, :, ::-1]  # change to BGR
-        image -= self.mean
+
+        if self.args.FDA_mode == 'off':
+            image -= self.mean
+        elif self.args.FDA_mode == 'on':
+            pass # subtraction by mean from image will be conducted after the amplitude switch(FDA)
+        else:
+            raise KeyError()
+
         return image.transpose((2, 0, 1))
 
     def get_image(self, file):

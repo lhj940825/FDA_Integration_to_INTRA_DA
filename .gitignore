@@ -1,5 +1,3 @@
-*.pyc
-*.mat
-*.swp
-dataset/BDD100k_list
-wandb
+ADVENT/data
+ADVENT/advent/dataset
+ADVENT/experiments

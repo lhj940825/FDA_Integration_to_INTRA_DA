@@ -1,3 +1,11 @@
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Written by Hojun Lim
+# Update date 08.09.2020
+# --------------------------------------------------------
+
 import numpy as np
 
 from advent.utils import project_root
@@ -8,12 +16,12 @@ DEFAULT_INFO_PATH = project_root / 'advent/dataset/cityscapes_list/info.json'
 
 
 class CityscapesDataSet(BaseDataset):
-    def __init__(self, root, list_path, set='val',
+    def __init__(self, args, root, list_path, set='val',
                  max_iters=None,
                  crop_size=(321, 321), mean=(128, 128, 128),
                  load_labels=True,
                  info_path=DEFAULT_INFO_PATH, labels_size=None):
-        super().__init__(root, list_path, set, max_iters, crop_size, labels_size, mean)
+        super().__init__(args, root, list_path, set, max_iters, crop_size, labels_size, mean)
 
         self.load_labels = load_labels
         self.info = json_load(info_path)
@@ -37,5 +45,13 @@ class CityscapesDataSet(BaseDataset):
         label = self.get_labels(label_file)
         label = self.map_labels(label).copy()
         image = self.get_image(img_file)
+
+        #if self.args.FDA_mode == 'off':
+        """
+            if FDA_mode == on: need to conduct the amplitude switch between source and target before subtracting the image by its mean value(preprocess). 
+            Therefore, perform the preprocessing only if FDA_mode == off.            
+            """
+        #    pass
         image = self.preprocess(image)
+
         return image.copy(), label, np.array(image.shape), name

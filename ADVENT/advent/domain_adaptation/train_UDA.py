@@ -4,6 +4,17 @@
 #
 # Written by Tuan-Hung Vu
 # --------------------------------------------------------
+
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Written by Hojun Lim
+# Update date 08.09.2020
+# --------------------------------------------------------
+
+
+
 import os
 import sys
 from pathlib import Path
@@ -20,19 +31,22 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from advent.model.discriminator import get_fc_discriminator
-from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator
+from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator, FDA_source_to_target
 from advent.utils.func import loss_calc, bce_loss
+#from advent.utils.func import preprocess
 from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
 
-
-def train_advent(model, trainloader, targetloader, cfg):
+def train_advent(model, trainloader, targetloader, cfg, args):
     ''' UDA training with advent
     '''
     # Create the model and start the training.
     input_size_source = cfg.TRAIN.INPUT_SIZE_SOURCE
     input_size_target = cfg.TRAIN.INPUT_SIZE_TARGET
+    SRC_IMG_MEAN = np.asarray(cfg.TRAIN.IMG_MEAN, dtype=np.float32)
+    SRC_IMG_MEAN = torch.reshape(torch.from_numpy(SRC_IMG_MEAN), (1,3,1,1))
+
     device = cfg.GPU_ID
     num_classes = cfg.NUM_CLASSES
     viz_tensorboard = os.path.exists(cfg.TRAIN.TENSORBOARD_LOGDIR)
@@ -100,6 +114,37 @@ def train_advent(model, trainloader, targetloader, cfg):
         # train on source
         _, batch = trainloader_iter.__next__()
         images_source, labels, _, _ = batch
+
+        # adversarial training ot fool the discriminator
+        _, batch = targetloader_iter.__next__()
+        images, _, _, _ = batch
+
+        # ----------------------------------------------------------------#
+        if args.FDA_mode == 'on':
+            # make the source image in target style
+            images_source = FDA_source_to_target(images_source, images, L=args.LB)
+            images = images
+
+            B, C, H, W = images_source.shape
+
+            mean_images_source = SRC_IMG_MEAN.repeat(B, 1, H, W)
+            mean_tmages = SRC_IMG_MEAN.repeat(B, 1, H, W)
+
+            # normalize the source and target image
+            images_source -= mean_images_source
+            images -= mean_tmages
+
+        elif args.FDA_mode == 'off':
+            # Keep source and target images as they are
+            # no need to perform normalization again since that has been done already in dataset class(GTA5, cityscapes) when args.FDA_mode = 'off'
+            image_source = image_source
+            images = images
+
+        else:
+            raise KeyError()
+        # ----------------------------------------------------------------#
+
+        #--------------------- train on source ---------------------#
         pred_src_aux, pred_src_main = model(images_source.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:
             pred_src_aux = interp(pred_src_aux)
@@ -112,9 +157,7 @@ def train_advent(model, trainloader, targetloader, cfg):
                 + cfg.TRAIN.LAMBDA_SEG_AUX * loss_seg_src_aux)
         loss.backward()
 
-        # adversarial training ot fool the discriminator
-        _, batch = targetloader_iter.__next__()
-        images, _, _, _ = batch
+        #-------------------- - train on target ---------------------#
         pred_trg_aux, pred_trg_main = model(images.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:
             pred_trg_aux = interp_target(pred_trg_aux)
@@ -198,6 +241,8 @@ def train_advent(model, trainloader, targetloader, cfg):
 
 
 def draw_in_tensorboard(writer, images, i_iter, pred_main, num_classes, type_):
+    images = torch.flip(images, [1])  # restore RGB channel from BGR
+
     grid_image = make_grid(images[:3].clone().cpu().data, 3, normalize=True)
     writer.add_image(f'Image - {type_}', grid_image, i_iter)
 
@@ -333,10 +378,10 @@ def to_numpy(tensor):
         return tensor.data.cpu().numpy()
 
 
-def train_domain_adaptation(model, trainloader, targetloader, cfg):
+def train_domain_adaptation(model, trainloader, targetloader, cfg, args):
     if cfg.TRAIN.DA_METHOD == 'MinEnt':
         train_minent(model, trainloader, targetloader, cfg)
     elif cfg.TRAIN.DA_METHOD == 'AdvEnt':
-        train_advent(model, trainloader, targetloader, cfg)
+        train_advent(model, trainloader, targetloader, cfg, args)
     else:
         raise NotImplementedError(f"Not yet supported DA method {cfg.TRAIN.DA_METHOD}")

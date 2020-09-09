@@ -47,7 +47,8 @@ cfg.TRAIN.SET_TARGET = 'train'
 cfg.TRAIN.BATCH_SIZE_SOURCE = 1
 cfg.TRAIN.BATCH_SIZE_TARGET = 1
 cfg.TRAIN.IGNORE_LABEL = 255
-cfg.TRAIN.INPUT_SIZE_SOURCE = (1280, 720)
+#cfg.TRAIN.INPUT_SIZE_SOURCE = (1280, 720)
+cfg.TRAIN.INPUT_SIZE_SOURCE = (1024, 512) # need to match the size of source and target image for amplitude switch
 cfg.TRAIN.INPUT_SIZE_TARGET = (1024, 512)
 # Class info
 cfg.TRAIN.INFO_SOURCE = ''

@@ -1,12 +1,21 @@
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Written by Hojun Lim
+# Update date 08.09.2020
+# --------------------------------------------------------
+
 import numpy as np
 
 from advent.dataset.base_dataset import BaseDataset
 
 
 class GTA5DataSet(BaseDataset):
-    def __init__(self, root, list_path, set='all',
+    def __init__(self, args, root, list_path, set='all',
                  max_iters=None, crop_size=(321, 321), mean=(128, 128, 128)):
-        super().__init__(root, list_path, set, max_iters, crop_size, None, mean)
+        super().__init__(args, root, list_path, set, max_iters, crop_size, None, mean)
+
 
         # map to cityscape's ids
         self.id_to_trainid = {7: 0, 8: 1, 11: 2, 12: 3, 13: 4, 17: 5,
@@ -26,5 +35,13 @@ class GTA5DataSet(BaseDataset):
         label_copy = 255 * np.ones(label.shape, dtype=np.float32)
         for k, v in self.id_to_trainid.items():
             label_copy[label == k] = v
+
+        #if self.args.FDA_mode == 'off':
+        """
+            if FDA_mode == on: need to conduct the amplitude switch between source and target before subtracting the image by its mean value(preprocess). 
+            Therefore, perform the preprocessing only if FDA_mode == off.            
+            """
+        #pass
         image = self.preprocess(image)
+
         return image.copy(), label_copy.copy(), np.array(image.shape), name

@@ -41,6 +41,8 @@ def get_arguments():
                         help="visualize results.")
     parser.add_argument("--exp-suffix", type=str, default=None,
                         help="optional experiment suffix")
+    parser.add_argument("--FDA-mode", type=str, default="off", help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
+    parser.add_argument("--LB", type=float, default=0.01, help="beta for FDA")
     return parser.parse_args()
 
 
@@ -107,7 +109,7 @@ def main():
     print('Model loaded')
 
     # DATALOADERS
-    source_dataset = GTA5DataSet(root=cfg.DATA_DIRECTORY_SOURCE,
+    source_dataset = GTA5DataSet(args=args, root=cfg.DATA_DIRECTORY_SOURCE,
                                  list_path=cfg.DATA_LIST_SOURCE,
                                  set=cfg.TRAIN.SET_SOURCE,
                                  max_iters=cfg.TRAIN.MAX_ITERS * cfg.TRAIN.BATCH_SIZE_SOURCE,
@@ -120,7 +122,7 @@ def main():
                                     pin_memory=True,
                                     worker_init_fn=_init_fn)
 
-    target_dataset = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
+    target_dataset = CityscapesDataSet(args=args, root=cfg.DATA_DIRECTORY_TARGET,
                                        list_path=cfg.DATA_LIST_TARGET,
                                        set=cfg.TRAIN.SET_TARGET,
                                        info_path=cfg.TRAIN.INFO_TARGET,
@@ -138,8 +140,11 @@ def main():
         yaml.dump(cfg, yaml_file, default_flow_style=False)
 
     # UDA TRAINING
-    train_domain_adaptation(model, source_loader, target_loader, cfg)
+    train_domain_adaptation(model, source_loader, target_loader, cfg, args)
 
 
 if __name__ == '__main__':
     main()
+
+# tensorboard --logdir=/media/data/hlim/IntraDA/ADVENT/experiments/logs/tensorboard/GTA2Cityspes_DeepLabv2_AdvEnt
+# train.py --cfg ./configs/advent.yml --tensorboard --FDA-mode='on' --LB=0.01
