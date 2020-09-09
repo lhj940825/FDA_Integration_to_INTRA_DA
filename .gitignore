@@ -1,3 +1,4 @@
 ADVENT/data
-ADVENT/advent/dataset
+ADVENT/advent/dataset/cityscapes_list
+ADVENT/advent/dataset/gta5_list
 ADVENT/experiments
