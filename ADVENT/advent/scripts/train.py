@@ -55,9 +55,10 @@ def main():
     assert args.cfg is not None, 'Missing cfg file'
     cfg_from_file(args.cfg)
     # auto-generate exp name if not specified
+    # ----------------------------------------------------------------#
     if cfg.EXP_NAME == '':
-        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}'
-
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+    # ----------------------------------------------------------------#
     if args.exp_suffix:
         cfg.EXP_NAME += f'_{args.exp_suffix}'
     # auto-generate snapshot path if not specified

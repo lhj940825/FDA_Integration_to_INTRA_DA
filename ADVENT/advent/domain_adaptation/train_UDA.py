@@ -38,6 +38,10 @@ from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
 
+# -------------------------------------------------------- #
+import wandb
+# -------------------------------------------------------- #
+
 def train_advent(model, trainloader, targetloader, cfg, args):
     ''' UDA training with advent
     '''
@@ -52,6 +56,17 @@ def train_advent(model, trainloader, targetloader, cfg, args):
     viz_tensorboard = os.path.exists(cfg.TRAIN.TENSORBOARD_LOGDIR)
     if viz_tensorboard:
         writer = SummaryWriter(log_dir=cfg.TRAIN.TENSORBOARD_LOGDIR)
+
+        # -------------------------------------------------------- #
+        # codes to initialize wandb for storing logs on its cloud
+        wandb.init(project='FDA_integration_to_INTRA_DA')
+        wandb.config.update(args)
+
+        for key, val in cfg.items():
+            wandb.config.update({key:val})
+
+        wandb.watch(model)
+        # -------------------------------------------------------- #
 
     # SEGMNETATION NETWORK
     model.train()
@@ -120,24 +135,24 @@ def train_advent(model, trainloader, targetloader, cfg, args):
         images, _, _, _ = batch
 
         # ----------------------------------------------------------------#
+        B, C, H, W = images_source.shape
+
+        mean_images_source = SRC_IMG_MEAN.repeat(B, 1, H, W)
+        mean_images = SRC_IMG_MEAN.repeat(B, 1, H, W)
+
         if args.FDA_mode == 'on':
             # make the source image in target style
             images_source = FDA_source_to_target(images_source, images, L=args.LB)
             images = images
 
-            B, C, H, W = images_source.shape
-
-            mean_images_source = SRC_IMG_MEAN.repeat(B, 1, H, W)
-            mean_tmages = SRC_IMG_MEAN.repeat(B, 1, H, W)
-
             # normalize the source and target image
             images_source -= mean_images_source
-            images -= mean_tmages
+            images -= mean_images
 
         elif args.FDA_mode == 'off':
             # Keep source and target images as they are
             # no need to perform normalization again since that has been done already in dataset class(GTA5, cityscapes) when args.FDA_mode = 'off'
-            image_source = image_source
+            images_source = images_source
             images = images
 
         else:
@@ -212,13 +227,7 @@ def train_advent(model, trainloader, targetloader, cfg, args):
             optimizer_d_aux.step()
         optimizer_d_main.step()
 
-        current_losses = {'loss_seg_src_aux': loss_seg_src_aux,
-                          'loss_seg_src_main': loss_seg_src_main,
-                          'loss_adv_trg_aux': loss_adv_trg_aux,
-                          'loss_adv_trg_main': loss_adv_trg_main,
-                          'loss_d_aux': loss_d_aux,
-                          'loss_d_main': loss_d_main}
-        print_losses(current_losses, i_iter)
+
 
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
             print('taking snapshot ...')
@@ -233,11 +242,28 @@ def train_advent(model, trainloader, targetloader, cfg, args):
 
         # Visualize with tensorboard
         if viz_tensorboard:
-            log_losses_tensorboard(writer, current_losses, i_iter)
+            # ----------------------------------------------------------------#
 
             if i_iter % cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE - 1:
-                draw_in_tensorboard(writer, images, i_iter, pred_trg_main, num_classes, 'T')
-                draw_in_tensorboard(writer, images_source, i_iter, pred_src_main, num_classes, 'S')
+                current_losses = {'loss_seg_src_aux': loss_seg_src_aux,
+                                  'loss_seg_src_main': loss_seg_src_main,
+                                  'loss_adv_trg_aux': loss_adv_trg_aux,
+                                  'loss_adv_trg_main': loss_adv_trg_main,
+                                  'loss_d_aux': loss_d_aux,
+                                  'loss_d_main': loss_d_main}
+                print_losses(current_losses, i_iter)
+
+                log_losses_tensorboard(writer, current_losses, i_iter)
+                draw_in_tensorboard(writer, images+mean_images, i_iter, pred_trg_main, num_classes, 'T')
+                draw_in_tensorboard(writer, images_source+mean_images_source, i_iter, pred_src_main, num_classes, 'S')
+
+                wandb.log({'loss': current_losses}, step=(i_iter + 1))
+                if i_iter % (cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE)*25 - 1: # for every 2500 iteration
+                    wandb.log(
+                        {'source': wandb.Image(torch.flip(images_source+mean_images_source, [1]).cpu().data[0].numpy().transpose((1, 2, 0))), \
+                         'target': wandb.Image(torch.flip(images+mean_images, [1]).cpu().data[0].numpy().transpose((1, 2, 0)))},
+                        step=(i_iter + 1))
+            # ----------------------------------------------------------------#
 
 
 def draw_in_tensorboard(writer, images, i_iter, pred_main, num_classes, type_):
@@ -352,6 +378,7 @@ def train_minent(model, trainloader, targetloader, cfg):
         # Visualize with tensorboard
         if viz_tensorboard:
             log_losses_tensorboard(writer, current_losses, i_iter)
+
 
             if i_iter % cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE - 1:
                 draw_in_tensorboard(writer, images, i_iter, pred_trg_main, num_classes, 'T')

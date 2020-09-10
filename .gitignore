@@ -4,3 +4,4 @@ ADVENT/advent/dataset/gta5_list
 ADVENT/experiments
 ADVENT/pretrained_models
 .idea
+ADVENT/advent/scripts/wandb
