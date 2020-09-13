@@ -4,6 +4,16 @@
 #
 # Written by Tuan-Hung Vu
 # --------------------------------------------------------
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Updated by Hojun Lim
+# Update date 08.09.2020
+# --------------------------------------------------------
+
+
+
 import argparse
 import os
 import os.path as osp
@@ -148,4 +158,5 @@ if __name__ == '__main__':
     main()
 
 # tensorboard --logdir=/media/data/hlim/IntraDA/ADVENT/experiments/logs/tensorboard/GTA2Cityspes_DeepLabv2_AdvEnt
+# log path: /media/data/hlim/IntraDA/ADVENT/experiments/logs/tensorboard/GTA2Cityscapes_DeepLabv2_AdvEnt_on
 # train.py --cfg ./configs/advent.yml --tensorboard --FDA-mode='on' --LB=0.01
