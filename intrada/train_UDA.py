@@ -189,11 +189,6 @@ def train_advent(model, trainloader, targetloader, cfg, args):
         loss = loss
         loss.backward()
 
-        a = images_source.cpu().data[0].numpy().flatten()
-        print(min(a), max(a))
-        b = images.cpu().data[0].numpy().flatten()
-        print(min(b), max(b))
-
         # Train discriminator networks
         # enable training mode on discriminator networks
         for param in d_aux.parameters():
@@ -246,7 +241,6 @@ def train_advent(model, trainloader, targetloader, cfg, args):
 
         # Visualize with tensorboard
         if viz_tensorboard:
-            log_losses_tensorboard(writer, current_losses, i_iter)
             # ----------------------------------------------------------------#
 
             if i_iter % cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE - 1:
