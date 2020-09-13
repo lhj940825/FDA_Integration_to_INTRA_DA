@@ -3,6 +3,14 @@
 #
 # to get the entropy ranking from Inter-domain adaptation process 
 #-----------------------------------------------------------
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Updated by Hojun Lim
+# Update date 13.09.2020
+# --------------------------------------------------------
+
 import sys
 from tqdm import tqdm
 import argparse
@@ -106,6 +114,10 @@ def get_arguments():
                         help='hyperparameter lambda to split the target domain')
     parser.add_argument('--cfg', type=str, default='../ADVENT/advent/scripts/configs/advent.yml',
                         help='optional config file' )
+    # ----------------------------------------------------------------#
+    parser.add_argument("--FDA-mode", type=str, default="off",
+                        help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
+    # ----------------------------------------------------------------#
     return parser.parse_args()
 
 def main(args):
@@ -117,8 +129,11 @@ def main(args):
 
     if not os.path.exists('./color_masks'):
         os.mkdir('./color_masks')
-
-    cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}'
+    # ----------------------------------------------------------------#
+    SRC_IMG_MEAN = np.asarray(cfg.TRAIN.IMG_MEAN, dtype=np.float32)
+    SRC_IMG_MEAN = torch.reshape(torch.from_numpy(SRC_IMG_MEAN), (1,3,1,1))
+    cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+    # ----------------------------------------------------------------#
     cfg.TEST.SNAPSHOT_DIR[0] = osp.join(cfg.EXP_ROOT_SNAPSHOT, cfg.EXP_NAME)
 
     # load model with parameters trained from Inter-domain adaptation
@@ -131,7 +146,7 @@ def main(args):
     load_checkpoint_for_evaluation(model_gen, restore_from, device)
     
     # load data
-    target_dataset = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
+    target_dataset = CityscapesDataSet(args=args, root=cfg.DATA_DIRECTORY_TARGET,
                                        list_path=cfg.DATA_LIST_TARGET,
                                        set=cfg.TRAIN.SET_TARGET,
                                        info_path=cfg.TRAIN.INFO_TARGET,
@@ -157,6 +172,26 @@ def main(args):
     for index in tqdm(range(len(target_loader))):
         _, batch = target_loader_iter.__next__()
         image, _, _, name = batch
+
+
+        # ----------------------------------------------------------------#
+        """
+        normalize the image before fed into the trained model
+        """
+        B, C, H, W = image.shape
+        mean_image = SRC_IMG_MEAN.repeat(B, 1, H, W)
+
+        if args.FDA_mode == 'on':
+            image -= mean_image
+
+        elif args.FDA_mode == 'off':
+            # no need to perform normalization again since that has been done already in dataset class(GTA5, cityscapes) when args.FDA_mode = 'off'
+            image = image
+
+        else:
+            raise KeyError()
+        # ----------------------------------------------------------------#
+
         with torch.no_grad():
             _, pred_trg_main = model_gen(image.cuda(device))
             pred_trg_main    = interp_target(pred_trg_main)
