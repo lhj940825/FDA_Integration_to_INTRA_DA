@@ -1,0 +1,32 @@
+{
+    "root": "/media/data/hlim/IntraDA",
+    "program": "train.py",
+    "git": {
+        "remote": "https://github.com/lhj940825/FDA_Integration_to_INTRA_DA.git",
+        "commit": "8e17e9226cde786df4e114d48587e10c66acb80f"
+    },
+    "email": "lhj940825@gmail.com",
+    "startedAt": "2020-09-13T14:41:19.572351",
+    "host": "cvg22",
+    "username": "hlim",
+    "executable": "/media/data/hlim/anaconda3/envs/FDA/bin/python",
+    "os": "Linux-4.15.0-101-generic-x86_64-with-debian-stretch-sid",
+    "python": "3.6.10",
+    "gpu": "GeForce GTX 1080 Ti",
+    "gpu_count": 1,
+    "cpu_count": 4,
+    "cuda": "10.1.105",
+    "args": [
+        "--cfg",
+        "./intrada_FDA_on.yml",
+        "--tensorboard",
+        "--FDA-mode",
+        "on"
+    ],
+    "state": "killed",
+    "jobType": null,
+    "mode": "run",
+    "project": "FDA_integration_to_INTRA_DA",
+    "heartbeatAt": "2020-09-13T14:41:24.227284",
+    "exitcode": 255
+}

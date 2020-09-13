@@ -40,6 +40,8 @@ def get_arguments():
                         help="visualize results.")
     parser.add_argument("--exp-suffix", type=str, default=None,
                         help="optional experiment suffix")
+    parser.add_argument("--FDA-mode", type=str, default="off",
+                        help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
     return parser.parse_args()
 
 
@@ -55,7 +57,7 @@ def main():
     cfg_from_file(args.cfg)
     # auto-generate exp name if not specified
     if cfg.EXP_NAME == '':
-        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}'
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
 
     if args.exp_suffix:
         cfg.EXP_NAME += f'_{args.exp_suffix}'
@@ -109,7 +111,7 @@ def main():
 
     # DATALOADERS
     # pdb.set_trace()
-    easy_dataset = CityscapesDataSet_easy(root=cfg.DATA_DIRECTORY_SOURCE,
+    easy_dataset = CityscapesDataSet_easy(args= args, root=cfg.DATA_DIRECTORY_SOURCE,
                                  list_path=cfg.DATA_LIST_SOURCE,
                                  max_iters=cfg.TRAIN.MAX_ITERS * cfg.TRAIN.BATCH_SIZE_SOURCE,
                                  crop_size=cfg.TRAIN.INPUT_SIZE_SOURCE,
@@ -122,7 +124,7 @@ def main():
                                     worker_init_fn=_init_fn)
 
     # pdb.set_trace()
-    hard_dataset = CityscapesDataSet_hard(root=cfg.DATA_DIRECTORY_TARGET,
+    hard_dataset = CityscapesDataSet_hard(args= args, root=cfg.DATA_DIRECTORY_TARGET,
                                        list_path=cfg.DATA_LIST_TARGET,
                                        set=cfg.TRAIN.SET_TARGET,
                                        info_path=cfg.TRAIN.INFO_TARGET,
@@ -140,7 +142,7 @@ def main():
         yaml.dump(cfg, yaml_file, default_flow_style=False)
 
     # pdb.set_trace()
-    train_domain_adaptation(model, easy_loader, hard_loader, cfg)
+    train_domain_adaptation(model, easy_loader, hard_loader, cfg, args)
 
 
 if __name__ == '__main__':

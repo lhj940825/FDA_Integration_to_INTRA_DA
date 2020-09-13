@@ -11,12 +11,12 @@ DEFAULT_INFO_PATH = project_root / 'advent/dataset/cityscapes_list/info.json'
 
 
 class CityscapesDataSet(BaseDataset):
-    def __init__(self, root, list_path, set='train',
+    def __init__(self, args, root, list_path, set='train',
                  max_iters=None,
                  crop_size=(321, 321), mean=(128, 128, 128),
                  load_labels=True, labels_size=None):
         # pdb.set_trace()
-        super().__init__(root, list_path, set, max_iters, crop_size, labels_size, mean)
+        super().__init__(args, root, list_path, set, max_iters, crop_size, labels_size, mean)
 
         self.load_labels = load_labels
         # self.info = json_load(info_path)
@@ -30,7 +30,7 @@ class CityscapesDataSet(BaseDataset):
         # label_name = name.replace("leftImg8bit", "gtFine_labelIds")
         # pdb.set_trace()
         label_name = name.split('/')[1]
-        label_file = '../entropy/color_masks/' + label_name 
+        label_file = '../entropy_rank/color_masks/' + label_name
         # label_file = self.root / 'gtFine' / self.set / label_name
         return img_file, label_file
 

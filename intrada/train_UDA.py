@@ -22,6 +22,7 @@ from advent.utils.func import loss_calc, bce_loss
 from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
+import wandb
 
 
 def load_checkpoint_for_evaluation(model, checkpoint, device):
@@ -31,18 +32,31 @@ def load_checkpoint_for_evaluation(model, checkpoint, device):
     model.cuda(device)
 
 
-def train_advent(model, trainloader, targetloader, cfg):
+def train_advent(model, trainloader, targetloader, cfg, args):
     ''' UDA training with advent
     '''
     # Create the model and start the training.
     # pdb.set_trace()
     input_size_source = cfg.TRAIN.INPUT_SIZE_SOURCE
     input_size_target = cfg.TRAIN.INPUT_SIZE_TARGET
+    SRC_IMG_MEAN = np.asarray(cfg.TRAIN.IMG_MEAN, dtype=np.float32)
+    SRC_IMG_MEAN = torch.reshape(torch.from_numpy(SRC_IMG_MEAN), (1,3,1,1))
+
     device = cfg.GPU_ID
     num_classes = cfg.NUM_CLASSES
     viz_tensorboard = os.path.exists(cfg.TRAIN.TENSORBOARD_LOGDIR)
     if viz_tensorboard:
         writer = SummaryWriter(log_dir=cfg.TRAIN.TENSORBOARD_LOGDIR)
+        # -------------------------------------------------------- #
+        # codes to initialize wandb for storing logs on its cloud
+        wandb.init(project='FDA_integration_to_INTRA_DA')
+        wandb.config.update(args)
+
+        for key, val in cfg.items():
+            wandb.config.update({key:val})
+
+        wandb.watch(model)
+        # -------------------------------------------------------- #
 
     # SEGMNETATION NETWORK
     model.train()
@@ -110,14 +124,42 @@ def train_advent(model, trainloader, targetloader, cfg):
             param.requires_grad = False
         for param in d_main.parameters():
             param.requires_grad = False
-        # train on source 
+
+
         _, batch = trainloader_iter.__next__()
         images_source, labels, _, _ = batch
+
+        _, batch = targetloader_iter.__next__()
+        images, _, _, _ = batch
+
+        # ----------------------------------------------------------------#
+        B, C, H, W = images_source.shape
+
+        mean_images_source = SRC_IMG_MEAN.repeat(B, 1, H, W)
+        mean_images = SRC_IMG_MEAN.repeat(B, 1, H, W)
+
+        if args.FDA_mode == 'on':
+            # normalize the source and target image
+            images_source -= mean_images_source
+            images -= mean_images
+
+        elif args.FDA_mode == 'off':
+            # Keep source and target images as they are
+            # no need to perform normalization again since that has been done already in dataset class(GTA5, cityscapes) when args.FDA_mode = 'off'
+            images_source = images_source
+            images = images
+
+        else:
+            raise KeyError()
+        # ----------------------------------------------------------------#
+
         # debug:
         # labels=labels.numpy()
         # from matplotlib import pyplot as plt
         # import numpy as np
         # plt.figure(1), plt.imshow(labels[0]), plt.ion(), plt.colorbar(), plt.show()
+
+        # train on source
         pred_src_aux, pred_src_main = model(images_source.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:
             pred_src_aux = interp(pred_src_aux)
@@ -132,8 +174,6 @@ def train_advent(model, trainloader, targetloader, cfg):
         loss.backward()
 
         # adversarial training ot fool the discriminator
-        _, batch = targetloader_iter.__next__()
-        images, _, _, _ = batch
         pred_trg_aux, pred_trg_main = model(images.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:
             pred_trg_aux = interp_target(pred_trg_aux)
@@ -148,6 +188,11 @@ def train_advent(model, trainloader, targetloader, cfg):
                 + cfg.TRAIN.LAMBDA_ADV_AUX * loss_adv_trg_aux)
         loss = loss
         loss.backward()
+
+        a = images_source.cpu().data[0].numpy().flatten()
+        print(min(a), max(a))
+        b = images.cpu().data[0].numpy().flatten()
+        print(min(b), max(b))
 
         # Train discriminator networks
         # enable training mode on discriminator networks
@@ -188,14 +233,6 @@ def train_advent(model, trainloader, targetloader, cfg):
             optimizer_d_aux.step()
         optimizer_d_main.step()
 
-        current_losses = {'loss_seg_src_aux': loss_seg_src_aux,
-                          'loss_seg_src_main': loss_seg_src_main,
-                          'loss_adv_trg_aux': loss_adv_trg_aux,
-                          'loss_adv_trg_main': loss_adv_trg_main,
-                          'loss_d_aux': loss_d_aux,
-                          'loss_d_main': loss_d_main}
-        print_losses(current_losses, i_iter)
-
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
             print('taking snapshot ...')
             print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
@@ -210,13 +247,33 @@ def train_advent(model, trainloader, targetloader, cfg):
         # Visualize with tensorboard
         if viz_tensorboard:
             log_losses_tensorboard(writer, current_losses, i_iter)
+            # ----------------------------------------------------------------#
 
             if i_iter % cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE - 1:
-                draw_in_tensorboard(writer, images, i_iter, pred_trg_main, num_classes, 'T')
-                draw_in_tensorboard(writer, images_source, i_iter, pred_src_main, num_classes, 'S')
+                current_losses = {'loss_seg_src_aux': loss_seg_src_aux,
+                                  'loss_seg_src_main': loss_seg_src_main,
+                                  'loss_adv_trg_aux': loss_adv_trg_aux,
+                                  'loss_adv_trg_main': loss_adv_trg_main,
+                                  'loss_d_aux': loss_d_aux,
+                                  'loss_d_main': loss_d_main}
+                print_losses(current_losses, i_iter)
+
+                log_losses_tensorboard(writer, current_losses, i_iter)
+                draw_in_tensorboard(writer, images+mean_images, i_iter, pred_trg_main, num_classes, 'T')
+                draw_in_tensorboard(writer, images_source+mean_images_source, i_iter, pred_src_main, num_classes, 'S')
+
+                wandb.log({'loss': current_losses}, step=(i_iter + 1))
+                if i_iter % (cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE)*25 - 1: # for every 2500 iteration
+                    wandb.log(
+                        {'source': wandb.Image(torch.flip(images_source+mean_images_source, [1]).cpu().data[0].numpy().transpose((1, 2, 0))), \
+                         'target': wandb.Image(torch.flip(images+mean_images, [1]).cpu().data[0].numpy().transpose((1, 2, 0)))},
+                        step=(i_iter + 1))
+            # ----------------------------------------------------------------#
 
 
 def draw_in_tensorboard(writer, images, i_iter, pred_main, num_classes, type_):
+    images = torch.flip(images, [1])  # restore RGB channel from BGR
+
     grid_image = make_grid(images[:3].clone().cpu().data, 3, normalize=True)
     writer.add_image(f'Image - {type_}', grid_image, i_iter)
 
@@ -352,10 +409,10 @@ def to_numpy(tensor):
         return tensor.data.cpu().numpy()
 
 
-def train_domain_adaptation(model, trainloader, targetloader, cfg):
+def train_domain_adaptation(model, trainloader, targetloader, cfg, args):
     if cfg.TRAIN.DA_METHOD == 'MinEnt':
         train_minent(model, trainloader, targetloader, cfg)
     elif cfg.TRAIN.DA_METHOD == 'AdvEnt':
-        train_advent(model, trainloader, targetloader, cfg)
+        train_advent(model, trainloader, targetloader, cfg, args)
     else:
         raise NotImplementedError(f"Not yet supported DA method {cfg.TRAIN.DA_METHOD}")
