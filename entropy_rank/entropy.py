@@ -55,7 +55,7 @@ def colorize(mask):
     
     return new_mask    
 
-def colorize_save(output_pt_tensor, name):
+def colorize_save(output_pt_tensor, name, FDA_mode):
     output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
     mask_np_tensor   = output_np_tensor.transpose(1,2,0) 
     mask_np_tensor   = np.asarray(np.argmax(mask_np_tensor, axis=2), dtype=np.uint8)
@@ -63,8 +63,8 @@ def colorize_save(output_pt_tensor, name):
     mask_color       = colorize(mask_np_tensor)  
 
     name = name.split('/')[-1]
-    mask_Img.save('./color_masks/%s' % (name))
-    mask_color.save('./color_masks/%s_color.png' % (name.split('.')[0]))
+    mask_Img.save('./color_masks_FDA_%s/%s' % (FDA_mode, name))
+    mask_color.save('./color_masks_FDA_%s/%s_color.png' % (FDA_mode, name.split('.')[0]))
 
 def find_rare_class(output_pt_tensor):
     output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
@@ -76,7 +76,7 @@ def find_rare_class(output_pt_tensor):
     return commom_class
 
 
-def cluster_subdomain(entropy_list, lambda1):
+def cluster_subdomain(entropy_list, lambda1, FDA_mode):
     entropy_list = sorted(entropy_list, key=lambda img: img[1])
     copy_list = entropy_list.copy()
     entropy_rank = [item[0] for item in entropy_list]
@@ -84,11 +84,11 @@ def cluster_subdomain(entropy_list, lambda1):
     easy_split = entropy_rank[ : int(len(entropy_rank) * lambda1)]
     hard_split = entropy_rank[int(len(entropy_rank)* lambda1): ]
 
-    with open('easy_split.txt','w+') as f:
+    with open('easy_split_FDA_%s.txt'%(FDA_mode),'w+') as f:
         for item in easy_split:
             f.write('%s\n' % item)
 
-    with open('hard_split.txt','w+') as f:
+    with open('hard_split_FDA_%s.txt'%(FDA_mode),'w+') as f:
         for item in hard_split:
             f.write('%s\n' % item)
 
@@ -127,8 +127,8 @@ def main(args):
     assert args.cfg is not None, 'Missing cfg file'
     cfg_from_file(args.cfg)
 
-    if not os.path.exists('./color_masks'):
-        os.mkdir('./color_masks')
+    if not os.path.exists('./color_masks_FDA_%s'%(args.FDA_mode)):
+        os.mkdir('./color_masks_FDA_%s'%(args.FDA_mode))
     # ----------------------------------------------------------------#
     SRC_IMG_MEAN = np.asarray(cfg.TRAIN.IMG_MEAN, dtype=np.float32)
     SRC_IMG_MEAN = torch.reshape(torch.from_numpy(SRC_IMG_MEAN), (1,3,1,1))
@@ -201,12 +201,15 @@ def main(args):
                 normalizor = 1
             pred_trg_entropy = prob_2_entropy(F.softmax(pred_trg_main))
             entropy_list.append((name[0], pred_trg_entropy.mean().item() * normalizor))
-            colorize_save(pred_trg_main, name[0])
+            colorize_save(pred_trg_main, name[0], args.FDA_mode)
 
     # split the enntropy_list into 
-    cluster_subdomain(entropy_list, args.lambda1)
+    cluster_subdomain(entropy_list, args.lambda1, args.FDA_mode)
 
 if __name__ == '__main__':
     args = get_arguments()
     print('Called with args:')
     main(args)
+
+# command
+# python entropy.py --best_iter 62000 --normalize False --lambda1 0.67 --FDA-mode 'on
