@@ -1,3 +1,13 @@
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Updated by Hojun Lim
+# Update date 12.09.2020
+# --------------------------------------------------------
+
+
+
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +22,7 @@ class BaseDataset(data.Dataset):
         self.root = Path(root)
         self.set = set_
         self.list_path = list_path.format(self.set)
+        print(self.list_path)
         self.image_size = image_size
         if labels_size is None:
             self.labels_size = self.image_size
@@ -35,12 +46,27 @@ class BaseDataset(data.Dataset):
 
     def preprocess(self, image):
         image = image[:, :, ::-1]  # change to BGR
-
-        if self.args.FDA_mode == 'off':
+        """
+        self.set indicates type of dataset. 
+        'all' is a keyword to denote gta5 dataset(as a source domain, there is no distinction between train set and validation set, but the whole data is used for training)
+        'train' is a keyword for training set of Cityscape dataset, which is used used only for training.
+        'val' is a keyword for validation set of Cityscape dataset.
+        """
+        # Preprocessing step in evaluation
+        if self.set == 'val':
             image -= self.mean
-        elif self.args.FDA_mode == 'on':
-            pass # subtraction by mean from image will be conducted after the amplitude switch(FDA)
+
+        # preprocessing step in training
+        elif self.set == 'train' or self.set == 'all':
+            if self.args.FDA_mode == 'off':
+                image -= self.mean
+            elif self.args.FDA_mode == 'on':
+                pass # subtraction by mean from image will be conducted after the amplitude switch(FDA)
+            else:
+
+                raise KeyError()
         else:
+
             raise KeyError()
 
         return image.transpose((2, 0, 1))

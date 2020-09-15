@@ -1,6 +1,14 @@
 #--------------------------------------------------------------------
 # modified from "ADVENT/advent/scripts/test.py" by Tuan-Hung Vu
 #--------------------------------------------------------------------
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Updated by Hojun Lim
+# Update date 15.09.2020
+# --------------------------------------------------------
+
 import argparse
 import os
 import os.path as osp
@@ -27,17 +35,30 @@ def get_arguments():
                         help='optional config file', )
     parser.add_argument("--exp-suffix", type=str, default=None,
                         help="optional experiment suffix")
+    # ----------------------------------------------------------------#
+    parser.add_argument("--FDA-mode", type=str, default="off",
+                        help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
+    parser.add_argument("--LB", type=float, default=0.01, help="beta for FDA")
+    # ----------------------------------------------------------------#
     return parser.parse_args()
 
 
-def main(config_file, exp_suffix):
+
+
+    # ----------------------------------------------------------------#
+def main():
+
     # LOAD ARGS
+    args = get_arguments()
+    config_file = args.cfg
+    exp_suffix = args.exp_suffix
     assert config_file is not None, 'Missing cfg file'
     cfg_from_file(config_file)
     # auto-generate exp name if not specified
     # pdb.set_trace()
     if cfg.EXP_NAME == '':
-        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}'
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+    # ----------------------------------------------------------------#
     if exp_suffix:
         cfg.EXP_NAME += f'_{exp_suffix}'
     # auto-generate snapshot path if not specified
@@ -66,7 +87,8 @@ def main(config_file, exp_suffix):
 
     # dataloaders
     # pdb.set_trace()
-    test_dataset = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
+    # ----------------------------------------------------------------#
+    test_dataset = CityscapesDataSet(args= args, root=cfg.DATA_DIRECTORY_TARGET,
                                      list_path='../ADVENT/advent/dataset/cityscapes_list/{}.txt',
                                      set=cfg.TEST.SET_TARGET,
                                      info_path=cfg.TEST.INFO_TARGET,
@@ -81,10 +103,18 @@ def main(config_file, exp_suffix):
     # eval
     # pdb.set_trace()
     evaluate_domain_adaptation(models, test_loader, cfg)
+    # ----------------------------------------------------------------#
 
 
 if __name__ == '__main__':
-    args = get_arguments()
-    print('Called with args:')
-    print(args)
-    main(args.cfg, args.exp_suffix)
+    #args = get_arguments()
+    #print('Called with args:')
+    #print(args)
+    # ----------------------------------------------------------------#
+    #main(args.cfg, args.FDA_mode, args.exp_suffix)
+    main()
+    # ----------------------------------------------------------------#
+
+
+   # command
+   # python test.py --cfg ./intradaFDA_on --FDA-mode='on'

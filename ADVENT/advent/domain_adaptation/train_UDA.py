@@ -9,7 +9,7 @@
 # Adaptation of FDA to Intra DA
 #
 #
-# Written by Hojun Lim
+# Updated by Hojun Lim
 # Update date 08.09.2020
 # --------------------------------------------------------
 
@@ -126,11 +126,11 @@ def train_advent(model, trainloader, targetloader, cfg, args):
             param.requires_grad = False
         for param in d_main.parameters():
             param.requires_grad = False
-        # train on source
+
         _, batch = trainloader_iter.__next__()
         images_source, labels, _, _ = batch
 
-        # adversarial training ot fool the discriminator
+
         _, batch = targetloader_iter.__next__()
         images, _, _, _ = batch
 
@@ -159,6 +159,7 @@ def train_advent(model, trainloader, targetloader, cfg, args):
             raise KeyError()
         # ----------------------------------------------------------------#
 
+        # train on source
         #--------------------- train on source ---------------------#
         pred_src_aux, pred_src_main = model(images_source.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:
@@ -172,6 +173,7 @@ def train_advent(model, trainloader, targetloader, cfg, args):
                 + cfg.TRAIN.LAMBDA_SEG_AUX * loss_seg_src_aux)
         loss.backward()
 
+        # adversarial training ot fool the discriminator
         #-------------------- - train on target ---------------------#
         pred_trg_aux, pred_trg_main = model(images.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:

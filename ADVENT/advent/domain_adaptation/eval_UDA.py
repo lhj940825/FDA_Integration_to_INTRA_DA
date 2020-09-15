@@ -4,18 +4,29 @@
 #
 # Written by Tuan-Hung Vu
 # --------------------------------------------------------
+# --------------------------------------------------------
+# Adaptation of FDA to Intra DA
+#
+#
+# Updated by Hojun Lim
+# Update date 12.09.2020
+# --------------------------------------------------------
+
 
 import os.path as osp
 import time
 
 import numpy as np
 import torch
+from advent.utils.viz_segmask import colorize_mask
 from torch import nn
 from tqdm import tqdm
 
 from advent.utils.func import per_class_iu, fast_hist
 from advent.utils.serialization import pickle_dump, pickle_load
-
+# -------------------------------------------------------- #
+import wandb
+# -------------------------------------------------------- #
 
 def evaluate_domain_adaptation( models, test_loader, cfg,
                                 fixed_test_size=True,
@@ -72,6 +83,15 @@ def eval_single(cfg, models,
 def eval_best(cfg, models,
               device, test_loader, interp,
               fixed_test_size, verbose):
+    # -------------------------------------------------------- #
+    # codes to initialize wandb for storing logs on its cloud
+    wandb.init(project='FDA_integration_to_INTRA_DA')
+
+    for key, val in cfg.items():
+        wandb.config.update({key: val})
+
+
+    # -------------------------------------------------------- #
     assert len(models) == 1, 'Not yet supported multi models in this mode'
     assert osp.exists(cfg.TEST.SNAPSHOT_DIR[0]), 'SNAPSHOT_DIR is not found'
     start_iter = cfg.TEST.SNAPSHOT_STEP
@@ -79,7 +99,7 @@ def eval_best(cfg, models,
     max_iter = cfg.TEST.SNAPSHOT_MAXITER
     cache_path = osp.join(cfg.TEST.SNAPSHOT_DIR[0], 'all_res.pkl')
     if osp.exists(cache_path):
-        all_res = pickle_load(cache_path)
+        cache_path = pickle_load(cache_path)
     else:
         all_res = {}
     cur_best_miou = -1
@@ -117,6 +137,19 @@ def eval_best(cfg, models,
             inters_over_union_classes = per_class_iu(hist)
             all_res[i_iter] = inters_over_union_classes
             pickle_dump(all_res, cache_path)
+
+
+            # -------------------------------------------------------- #
+            # save logs at weight and biases
+            IoU_classes = {}
+            for idx in range(cfg.NUM_CLASSES):
+                IoU_classes[test_loader.dataset.class_names[idx]] = round(inters_over_union_classes[idx] * 100, 2)
+            wandb.log(IoU_classes, step=(i_iter))
+            wandb.log({'mIoU19' : round(np.nanmean(inters_over_union_classes) * 100, 2) }, step=(i_iter))
+            wandb.log({'val_prediction':wandb.Image(colorize_mask(np.asarray(
+               output, dtype=np.uint8)).convert('RGB'))}, step=(i_iter))
+            # -------------------------------------------------------- #
+
         else:
             inters_over_union_classes = all_res[i_iter]
         computed_miou = round(np.nanmean(inters_over_union_classes) * 100, 2)
@@ -126,6 +159,7 @@ def eval_best(cfg, models,
         print('\tCurrent mIoU:', computed_miou)
         print('\tCurrent best model:', cur_best_model)
         print('\tCurrent best mIoU:', cur_best_miou)
+        wandb.log({'best mIoU': cur_best_miou}, step=(i_iter))
         if verbose:
             display_stats(cfg, test_loader.dataset.class_names, inters_over_union_classes)
 

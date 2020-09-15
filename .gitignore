@@ -5,3 +5,8 @@ ADVENT/experiments
 ADVENT/pretrained_models
 .idea
 ADVENT/advent/scripts/wandb
+entropy_rank/color_masks*
+entropy_rank/easy_split*
+entropy_rank/hard_split*
+intrada/wandb
+intrada/__pycache__

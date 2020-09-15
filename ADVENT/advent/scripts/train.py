@@ -157,6 +157,8 @@ def main():
 if __name__ == '__main__':
     main()
 
-# tensorboard --logdir=/media/data/hlim/IntraDA/ADVENT/experiments/logs/tensorboard/GTA2Cityspes_DeepLabv2_AdvEnt
+# tensorboard --logdir=/media/data/hlim/IntraDA/ADVENT/experiments/logs/tensorboard/GTA2Cityspes_DeepLabv2_AdvEnt_on
 # log path: /media/data/hlim/IntraDA/ADVENT/experiments/logs/tensorboard/GTA2Cityscapes_DeepLabv2_AdvEnt_on
+#
+# Command for training: at ADVENT/advent/scripts
 # train.py --cfg ./configs/advent.yml --tensorboard --FDA-mode='on' --LB=0.01
