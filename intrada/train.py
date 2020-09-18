@@ -40,8 +40,13 @@ def get_arguments():
                         help="visualize results.")
     parser.add_argument("--exp-suffix", type=str, default=None,
                         help="optional experiment suffix")
+    # ----------------------------------------------------------------#
     parser.add_argument("--FDA-mode", type=str, default="off",
                         help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
+    parser.add_argument("--LB", type=float, default=0.01, help="beta for FDA")
+    parser.add_argument("--thres", type=bool, default=False)
+    parser.add_argument('--round', type=int, default=0, help='specify the round of self supervised learning')
+    # ----------------------------------------------------------------#
     return parser.parse_args()
 
 
@@ -56,8 +61,13 @@ def main():
     assert args.cfg is not None, 'Missing cfg file'
     cfg_from_file(args.cfg)
     # auto-generate exp name if not specified
+    # ----------------------------------------------------------------#
     if cfg.EXP_NAME == '':
-        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+        if args.thres: # when thresholding was applied in entropy-ranking
+            cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_THRESH_round_{args.round}'
+        else:
+            cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+    # ----------------------------------------------------------------#
 
     if args.exp_suffix:
         cfg.EXP_NAME += f'_{args.exp_suffix}'

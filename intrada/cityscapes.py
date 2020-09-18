@@ -30,7 +30,14 @@ class CityscapesDataSet(BaseDataset):
         # label_name = name.replace("leftImg8bit", "gtFine_labelIds")
         # pdb.set_trace()
         label_name = name.split('/')[1]
-        label_file = '../entropy_rank/color_masks/' + label_name
+        # ----------------------------------------------------------------#
+        if self.args.thres: # when thresholding was applied in entropy-ranking
+            label_file = '../entropy_rank/color_masks_FDA_%s_THRESH_round_%s/' % (self.args.FDA_mode, self.args.round) + label_name
+
+        else:
+            label_file = '../entropy_rank/color_masks_FDA_%s/'%(self.args.FDA_mode) + label_name
+        # ----------------------------------------------------------------#
+        #print(img_file, label_file)
         # label_file = self.root / 'gtFine' / self.set / label_name
         return img_file, label_file
 

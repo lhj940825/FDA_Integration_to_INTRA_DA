@@ -22,7 +22,6 @@ class BaseDataset(data.Dataset):
         self.root = Path(root)
         self.set = set_
         self.list_path = list_path.format(self.set)
-        print(self.list_path)
         self.image_size = image_size
         if labels_size is None:
             self.labels_size = self.image_size
@@ -63,10 +62,9 @@ class BaseDataset(data.Dataset):
             elif self.args.FDA_mode == 'on':
                 pass # subtraction by mean from image will be conducted after the amplitude switch(FDA)
             else:
-
                 raise KeyError()
-        else:
 
+        else:
             raise KeyError()
 
         return image.transpose((2, 0, 1))

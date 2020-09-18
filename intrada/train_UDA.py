@@ -256,11 +256,13 @@ def train_advent(model, trainloader, targetloader, cfg, args):
                 draw_in_tensorboard(writer, images+mean_images, i_iter, pred_trg_main, num_classes, 'T')
                 draw_in_tensorboard(writer, images_source+mean_images_source, i_iter, pred_src_main, num_classes, 'S')
 
+
                 wandb.log({'loss': current_losses}, step=(i_iter + 1))
                 if i_iter % (cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE)*25 - 1: # for every 2500 iteration
                     wandb.log(
                         {'source': wandb.Image(torch.flip(images_source+mean_images_source, [1]).cpu().data[0].numpy().transpose((1, 2, 0))), \
-                         'target': wandb.Image(torch.flip(images+mean_images, [1]).cpu().data[0].numpy().transpose((1, 2, 0)))},
+                         'target': wandb.Image(torch.flip(images+mean_images, [1]).cpu().data[0].numpy().transpose((1, 2, 0))),
+                         'pesudo label': wandb.Image(np.asarray(colorize_mask(np.asarray(labels.cpu().data.numpy().transpose(1,2,0).reshape((512,1024)), dtype=np.uint8)).convert('RGB')) )},
                         step=(i_iter + 1))
             # ----------------------------------------------------------------#
 
