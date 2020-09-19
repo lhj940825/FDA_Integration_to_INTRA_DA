@@ -165,7 +165,11 @@ def main(args):
     if args.round == 0: # first round of SSL
         cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
     elif args.round > 0: # when SSL round is higher than 0
-        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_THRESH_round_{args.round}'
+
+        # SOURCE and TARGET are no longer GTA and Cityscape, but are easy and hard split
+        cfg.SOURCE = 'CityscapesEasy'
+        cfg.TARGET = 'CityscapesHard'
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_THRESH_round_{args.round - 1}' # load the best model from the previous round
     else:
         raise KeyError()
     # ----------------------------------------------------------------#
