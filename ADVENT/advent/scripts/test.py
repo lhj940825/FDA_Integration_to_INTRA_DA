@@ -47,7 +47,7 @@ def get_arguments():
     # ----------------------------------------------------------------#
     parser.add_argument("--FDA-mode", type=str, default="off",
                         help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
-    parser.add_argument("--LB", type=float, default=0.01, help="beta for FDA")
+    parser.add_argument("--LB", type=float, default=0, help="beta for FDA")
     # ----------------------------------------------------------------#
     return parser.parse_args()
 
@@ -70,7 +70,7 @@ def main():
     # auto-generate exp name if not specified
 
     if cfg.EXP_NAME == '':
-        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{str(args.LB).replace(".","_")}'
     # ----------------------------------------------------------------#
     if exp_suffix:
         cfg.EXP_NAME += f'_{exp_suffix}'

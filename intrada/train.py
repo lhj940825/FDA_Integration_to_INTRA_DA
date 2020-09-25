@@ -43,9 +43,10 @@ def get_arguments():
     # ----------------------------------------------------------------#
     parser.add_argument("--FDA-mode", type=str, default="off",
                         help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
-    parser.add_argument("--LB", type=float, default=0.01, help="beta for FDA")
-    parser.add_argument("--thres", type=bool, default=False)
+    parser.add_argument("--LB", type=float, default=0, help="beta for FDA")
+    parser.add_argument("--thres", type=bool, default=False, help= "Flag of thresholding in entropy-ranking")
     parser.add_argument('--round', type=int, default=0, help='specify the round of self supervised learning')
+    parser.add_argument("--MBT", type=bool, default=False)
     # ----------------------------------------------------------------#
     return parser.parse_args()
 
@@ -62,11 +63,13 @@ def main():
     cfg_from_file(args.cfg)
     # auto-generate exp name if not specified
     # ----------------------------------------------------------------#
+
     if cfg.EXP_NAME == '':
-        if args.thres: # when thresholding was applied in entropy-ranking
-            cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_THRESH_round_{args.round}'
+        if args.MBT: # when to train a model on pseudo label from MBT
+            cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_MBT_THRESH_{args.thres}_ROUND_{args.round}'
         else:
-            cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+            args.LB = str(args.LB).replace('.', '_')
+            cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{args.LB}_THRESH_{args.thres}_ROUND_{args.round}'
     # ----------------------------------------------------------------#
 
     if args.exp_suffix:

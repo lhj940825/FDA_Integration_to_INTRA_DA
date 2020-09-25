@@ -30,12 +30,20 @@ class CityscapesDataSet(BaseDataset):
         # label_name = name.replace("leftImg8bit", "gtFine_labelIds")
         # pdb.set_trace()
         label_name = name.split('/')[1]
+
         # ----------------------------------------------------------------#
+        if self.args.MBT: # when loading pseudo labels generated from MBT model.
+            label_file= '../entropy_rank/color_masks_FDA_%s_LB_MBT_THRESH_%s_ROUND_%s/' % (self.args.FDA_mode, self.args.thres, self.args.round) + label_name
+
+        else: # when loading pseudo labels generated from single band model.
+            label_file = '../entropy_rank/color_masks_FDA_%s_LB_%s_THRESH_%s_ROUND_%s/' % (self.args.FDA_mode, self.args.LB, self.thres, self.args.round) + label_name
+        """
         if self.args.thres: # when thresholding was applied in entropy-ranking
-            label_file = '../entropy_rank/color_masks_FDA_%s_THRESH_round_%s/' % (self.args.FDA_mode, self.args.round) + label_name
+            label_file = '../entropy_rank/color_masks_FDA_%s_LB_%s_THRESH_ROUND_%s/' % (self.args.FDA_mode, self.args.LB, self.args.round) + label_name
 
         else:
-            label_file = '../entropy_rank/color_masks_FDA_%s/'%(self.args.FDA_mode) + label_name
+            label_file = '../entropy_rank/color_masks_FDA_%s_LB_%s/'%(self.args.FDA_mode, self.args.LB) + label_name
+        """
         # ----------------------------------------------------------------#
         #print(img_file, label_file)
         # label_file = self.root / 'gtFine' / self.set / label_name

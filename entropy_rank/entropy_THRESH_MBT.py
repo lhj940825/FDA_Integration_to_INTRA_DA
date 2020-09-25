@@ -1,11 +1,4 @@
-# Created by Hojun Lim(Media Informatics, 405165) at 16.09.20
-
-# apply a thresholding concept from FDA paper into the entropy-ranking
-##----------------------------------------------------------
-# written by Fei Pan
-#
-# to get the entropy ranking from Inter-domain adaptation process
-# -----------------------------------------------------------
+# Created by Hojun Lim(Media Informatics, 405165) at 23.09.20
 
 import sys
 from tqdm import tqdm
@@ -27,9 +20,9 @@ from advent.utils.func import loss_calc, bce_loss
 from advent.domain_adaptation.config import cfg, cfg_from_file
 from matplotlib import pyplot as plt
 from matplotlib import image  as mpimg
-from entropy_rank.entropy import easy_split_txt_dir, hard_split_txt_dir, save_dir, img_save_dir, color_img_save_dir, colorize, colorize_save, cluster_subdomain, find_rare_class, load_checkpoint_for_evaluation
-
-
+from entropy_rank.entropy import easy_split_txt_dir, hard_split_txt_dir, save_dir, img_save_dir, color_img_save_dir, \
+    colorize, colorize_save, cluster_subdomain, find_rare_class, load_checkpoint_for_evaluation
+from entropy_rank.entropy_THRESH import colorize_save_with_thresholding
 thresholding = True
 
 # ------------------------------------- color -------------------------------------------
@@ -46,44 +39,6 @@ for i in range(zero_pad):
 rare_class = [3, 4, 5, 6, 7, 9, 12, 14, 15, 16, 17]
 
 """
-def colorize(mask):
-    # mask: numpy array of the mask
-    new_mask = Image.fromarray(mask.astype(np.uint8)).convert('P')
-    new_mask.putpalette(palette)
-
-    return new_mask
-
-
-def colorize_save(output_pt_tensor, name, args):
-    output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
-    mask_np_tensor = output_np_tensor.transpose(1, 2, 0)
-    mask_np_tensor = np.asarray(np.argmax(mask_np_tensor, axis=2), dtype=np.uint8)
-    mask_Img = Image.fromarray(mask_np_tensor)
-    mask_color = colorize(mask_np_tensor)
-
-    name = name.split('/')[-1]
-    
-    #mask_Img.save('./color_masks_FDA_%s_THRESH/%s' % (FDA_mode, name))
-    #mask_color.save('./color_masks_FDA_%s_THRESH/%s_color.png' % (FDA_mode, name.split('.')[0]))
-
-    # ----------------------------------------------------------------#
-    LB = args.LB.replace('.','_')
-    mask_Img.save(img_save_dir % (args.FDA_mode, LB, str(thresholding), args.round, name))
-    mask_color.save(color_img_save_dir % (args.FDA_mode, LB, str(thresholding), args.round, name.split('.')[0]))
-    # ----------------------------------------------------------------#
-
-def colorize_save_with_thresholding(output_thres, name, FDA_mode, round):
-    #output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
-    #mask_np_tensor = output_np_tensor.transpose(1, 2, 0)
-    #mask_np_tensor = np.asarray(np.argmax(mask_np_tensor, axis=2), dtype=np.uint8)
-    mask_Img = Image.fromarray(output_thres)
-    mask_color = colorize(output_thres)
-
-    name = name.split('/')[-1]
-    mask_Img.save('./color_masks_FDA_%s_THRESH_round_%s/%s' % (FDA_mode, round, name))
-    mask_color.save('./color_masks_FDA_%s_THRESH_round_%s/%s_color.png' % (FDA_mode, round, name.split('.')[0]))
-"""
-
 def colorize_save_with_thresholding(easy_split, thres, predicted_label, predicted_prob, image_name, args):
     for index in range(len(easy_split)):
         name = image_name[index]
@@ -92,62 +47,20 @@ def colorize_save_with_thresholding(easy_split, thres, predicted_label, predicte
 
         # apply thresholding
         for i in range(cfg.NUM_CLASSES):
-            label[(prob < thres[i]) * (label == i)] = 255  # set pixels whose predicted label is 'i' and its confidence score is below then 'thres[i]' as 255
+            label[(prob < thres[i]) * (
+                        label == i)] = 255  # set pixels whose predicted label is 'i' and its confidence score is below then 'thres[i]' as 255
         output_thres = np.asarray(label, dtype=np.uint8)
 
         mask_Img = Image.fromarray(output_thres)
         mask_color = colorize(output_thres)
 
         name = name.split('/')[-1]
-        #LB = args.LB.replace('.','_')
+        # LB = args.LB.replace('.','_')
         mask_Img.save(img_save_dir % (args.FDA_mode, args.LB, str(thresholding), args.round, name))
-        mask_color.save(color_img_save_dir % (args.FDA_mode, args.LB, str(thresholding), args.round, name.split('.')[0]))
-
-
+        mask_color.save(
+            color_img_save_dir % (args.FDA_mode, args.LB, str(thresholding), args.round, name.split('.')[0]))
 """
-def find_rare_class(output_pt_tensor):
-    output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
-    mask_np_tensor = output_np_tensor.transpose(1, 2, 0)
-    mask_np_tensor = np.asarray(np.argmax(mask_np_tensor, axis=2), dtype=np.uint8)
-    mask_np_tensor = np.reshape(mask_np_tensor, 512 * 1024)
-    unique_class = np.unique(mask_np_tensor).tolist()
-    commom_class = set(unique_class).intersection(rare_class)
-    return commom_class
 
-
-def cluster_subdomain(entropy_list, lambda1, args):
-    entropy_list = sorted(entropy_list, key=lambda img: img[1])
-    copy_list = entropy_list.copy()
-    entropy_rank = [item[0] for item in entropy_list]
-
-    easy_split = entropy_rank[: int(len(entropy_rank) * lambda1)]
-    hard_split = entropy_rank[int(len(entropy_rank) * lambda1):]
-
-    #with open('easy_split_FDA_%s_THRESH_round_%s.txt' % (FDA_mode, round), 'w+') as f:
-    #    for item in easy_split:
-    #        f.write('%s\n' % item)
-
-    #with open('hard_split_FDA_%s_THRESH_round_%s.txt' % (FDA_mode, round), 'w+') as f:
-    #    for item in hard_split:
-    #        f.write('%s\n' % item)
-
-    LB = args.LB.replace('.', '_')
-    with open(easy_split_txt_dir % (args.FDA_mode, LB, thresholding, args.round),'w+') as f:
-        for item in easy_split:
-            f.write('%s\n' % item)
-
-    with open(hard_split_txt_dir % (args.FDA_mode, LB, thresholding, args.round),'w+') as f:
-        for item in hard_split:
-            f.write('%s\n' % item)
-    return copy_list, easy_split
-
-
-def load_checkpoint_for_evaluation(model, checkpoint, device):
-    saved_state_dict = torch.load(checkpoint)
-    model.load_state_dict(saved_state_dict)
-    model.eval()
-    model.cuda(device)
-"""
 
 def get_arguments():
     """
@@ -167,8 +80,11 @@ def get_arguments():
     parser.add_argument("--FDA-mode", type=str, default="off",
                         help="on: apply the amplitude switch between source and target, off: doesn't apply ampltude switch")
     parser.add_argument('--round', type=int, default=0, help='specify the round of self supervised learning')
-    parser.add_argument("--MBT", type=bool, default=False)
-    parser.add_argument("--LB", type=str, default="0.01", help="beta for FDA or MBT")
+    parser.add_argument("--MBT", type=bool, default=True)
+    parser.add_argument("--LB", type=str, default="0", help="beta for FDA or MBT")
+    parser.add_argument("--restore-opt1", type=str, default=None, help="restore model parameters from beta1")
+    parser.add_argument("--restore-opt2", type=str, default=None, help="restore model parameters from beta2")
+    parser.add_argument("--restore-opt3", type=str, default=None, help="restore model parameters from beta3")
     # ----------------------------------------------------------------#
     return parser.parse_args()
 
@@ -182,10 +98,12 @@ def main(args):
     if not os.path.exists(save_dir % (args.FDA_mode, args.round)):
         os.mkdir(save_dir % (args.FDA_mode, args.round))
     # ----------------------------------------------------------------#
-    args.LB = str(args.LB).replace('.', '_')
+    args.LB = str(args.MBT) # set args.LB = 'MBT'
     SRC_IMG_MEAN = np.asarray(cfg.TRAIN.IMG_MEAN, dtype=np.float32)
     SRC_IMG_MEAN = torch.reshape(torch.from_numpy(SRC_IMG_MEAN), (1, 3, 1, 1))
 
+
+    ###################### here, replace by restoring three different model#####################
     if args.round == 0:  # first round of SSL
         cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{args.LB}'
 
@@ -197,6 +115,8 @@ def main(args):
         cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{args.LB}_THRESH_{str(thresholding)}_ROUND_{args.round - 1}'
     else:
         raise KeyError()
+
+    ##########################################################################################################################################
     # ----------------------------------------------------------------#
     cfg.TEST.SNAPSHOT_DIR[0] = osp.join(cfg.EXP_ROOT_SNAPSHOT, cfg.EXP_NAME)
 
@@ -232,9 +152,6 @@ def main(args):
     interp_target = nn.Upsample(size=(input_size_target[1], input_size_target[0]), mode='bilinear',
                                 align_corners=True)
 
-
-
-
     # ---------------------------------------------------------------------------------------------------------------#
 
     # step 1. entropy-ranking: split the target dataset into easy and hard cases.
@@ -259,15 +176,15 @@ def main(args):
             raise KeyError()
 
         with torch.no_grad():
-            _, pred_trg_main = model_gen(image.cuda(device)) # shape(pred_trg_main) = (1, 19, 65, 129)
-            pred_trg_main = interp_target(pred_trg_main) # shape(pred_trg_main) = (1, 19, 512, 1024)
+            _, pred_trg_main = model_gen(image.cuda(device))  # shape(pred_trg_main) = (1, 19, 65, 129)
+            pred_trg_main = interp_target(pred_trg_main)  # shape(pred_trg_main) = (1, 19, 512, 1024)
             if args.normalize == True:
                 normalizor = (11 - len(find_rare_class(pred_trg_main))) / 11.0 + 0.5
             else:
                 normalizor = 1
             pred_trg_entropy = prob_2_entropy(F.softmax(pred_trg_main))
             entropy_list.append((name[0], pred_trg_entropy.mean().item() * normalizor))
-            #colorize_save(pred_trg_main, name[0], args.FDA_mode)
+            # colorize_save(pred_trg_main, name[0], args.FDA_mode)
 
     # split the enntropy_list into
     _, easy_split = cluster_subdomain(entropy_list, args, thresholding)
@@ -276,8 +193,8 @@ def main(args):
 
     # step2. apply thresholding(either top 66% or confidence score above 0.9) to easy-split target dataset and save them.
 
-    predicted_label = np.zeros((len(easy_split), 512, 1024)) # (512, 1024) is the size of target output
-    predicted_prob =  np.zeros((len(easy_split), 512, 1024))
+    predicted_label = np.zeros((len(easy_split), 512, 1024))  # (512, 1024) is the size of target output
+    predicted_prob = np.zeros((len(easy_split), 512, 1024))
     image_name = []
     idx = 0
 
@@ -287,7 +204,7 @@ def main(args):
         _, batch = target_loader_iter.__next__()
         image, _, _, name = batch
 
-        if name[0] not in easy_split: # only compute the images that belongs to easy-split
+        if name[0] not in easy_split:  # only compute the images that belongs to easy-split
             continue
 
         # normalize the image before fed into the trained model
@@ -305,35 +222,34 @@ def main(args):
             raise KeyError()
 
         with torch.no_grad():
-            _, pred_trg_main = model_gen(image.cuda(device))                   # shape(pred_trg_main) = (1, 19, 65, 129)
-            pred_trg_main = F.softmax(interp_target(pred_trg_main), dim=1).cpu().data[0].numpy() # shape(pred_trg_main) = (1, 19, 512, 1024)
-            pred_trg_main = pred_trg_main.transpose(1,2,0)                     # shape(pred_trg_main) = (512, 1024, 19)
+            _, pred_trg_main = model_gen(image.cuda(device))  # shape(pred_trg_main) = (1, 19, 65, 129)
+            pred_trg_main = F.softmax(interp_target(pred_trg_main), dim=1).cpu().data[
+                0].numpy()  # shape(pred_trg_main) = (1, 19, 512, 1024)
+            pred_trg_main = pred_trg_main.transpose(1, 2, 0)  # shape(pred_trg_main) = (512, 1024, 19)
             label, prob = np.argmax(pred_trg_main, axis=2), np.max(pred_trg_main, axis=2)
             predicted_label[idx] = label
             predicted_prob[idx] = prob
             image_name.append(name[0])
             idx += 1
 
-
-    assert len(easy_split) == len(image_name) # check whether all images in easy-split are processed
+    assert len(easy_split) == len(image_name)  # check whether all images in easy-split are processed
 
     # compute the threshold for each label
     thres = []
     for i in range(cfg.NUM_CLASSES):
-        x = predicted_prob[predicted_label==i]
+        x = predicted_prob[predicted_label == i]
         if len(x) == 0:
             thres.append(0)
             continue
         x = np.sort(x)
-        thres.append(x[np.int(np.round(len(x)*0.66))]) # thres contains the thresholding values by labels in corresponding entry:thres[label]
+        thres.append(x[np.int(np.round(
+            len(x) * 0.66))])  # thres contains the thresholding values by labels in corresponding entry:thres[label]
     print(thres)
     thres = np.array(thres)
-    thres[thres>0.9] = 0.9
+    thres[thres > 0.9] = 0.9
 
     print(thres)
     colorize_save_with_thresholding(easy_split, thres, predicted_label, predicted_prob, image_name, args)
-
-
 
 
 if __name__ == '__main__':

@@ -32,6 +32,16 @@ from advent.domain_adaptation.config import cfg, cfg_from_file
 from matplotlib import pyplot as plt
 from matplotlib import image  as mpimg
 
+# ----------------------------------------------------------------#
+save_dir = './color_masks_FDA_%s_LB_%s_THRESH_%s_ROUND_%s'
+img_save_dir = './color_masks_FDA_%s_LB_%s_THRESH_%s_ROUND_%s/%s'
+color_img_save_dir = './color_masks_FDA_%s_LB_%s_THRESH_%s_ROUND_%s/%s_color.png'
+easy_split_txt_dir = 'easy_split_FDA_%s_LB_%s_THRESH_%s_ROUND_%s.txt'
+hard_split_txt_dir = 'hard_split_FDA_%s_LB_%s_THRESH_%s_ROUND_%s.txt'
+
+thresholding = False
+# ----------------------------------------------------------------#
+
 
 
 #------------------------------------- color -------------------------------------------
@@ -55,7 +65,7 @@ def colorize(mask):
     
     return new_mask    
 
-def colorize_save(output_pt_tensor, name, FDA_mode):
+def colorize_save(output_pt_tensor, name, args):
     output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
     mask_np_tensor   = output_np_tensor.transpose(1,2,0) 
     mask_np_tensor   = np.asarray(np.argmax(mask_np_tensor, axis=2), dtype=np.uint8)
@@ -63,8 +73,13 @@ def colorize_save(output_pt_tensor, name, FDA_mode):
     mask_color       = colorize(mask_np_tensor)  
 
     name = name.split('/')[-1]
-    mask_Img.save('./color_masks_FDA_%s/%s' % (FDA_mode, name))
-    mask_color.save('./color_masks_FDA_%s/%s_color.png' % (FDA_mode, name.split('.')[0]))
+    # ----------------------------------------------------------------#
+    #mask_Img.save('./color_masks_FDA_%s_LB_%s/%s' % (FDA_mode, LB, name))
+    #mask_color.save('./color_masks_FDA_%s_LB_%s/%s_color.png' % (FDA_mode, LB, name.split('.')[0]))
+    LB = args.LB
+    mask_Img.save(img_save_dir % (args.FDA_mode, LB, str(thresholding), args.round, name))
+    mask_color.save(color_img_save_dir % (args.FDA_mode, LB, str(thresholding), args.round, name.split('.')[0]))
+    # ----------------------------------------------------------------#
 
 def find_rare_class(output_pt_tensor):
     output_np_tensor = output_pt_tensor.cpu().data[0].numpy()
@@ -76,14 +91,16 @@ def find_rare_class(output_pt_tensor):
     return commom_class
 
 
-def cluster_subdomain(entropy_list, lambda1, FDA_mode):
+def cluster_subdomain(entropy_list, args, thresholding):
     entropy_list = sorted(entropy_list, key=lambda img: img[1])
     copy_list = entropy_list.copy()
     entropy_rank = [item[0] for item in entropy_list]
+    lambda1 = args.lambda1
 
     easy_split = entropy_rank[ : int(len(entropy_rank) * lambda1)]
     hard_split = entropy_rank[int(len(entropy_rank)* lambda1): ]
 
+    """
     with open('easy_split_FDA_%s.txt'%(FDA_mode),'w+') as f:
         for item in easy_split:
             f.write('%s\n' % item)
@@ -91,8 +108,18 @@ def cluster_subdomain(entropy_list, lambda1, FDA_mode):
     with open('hard_split_FDA_%s.txt'%(FDA_mode),'w+') as f:
         for item in hard_split:
             f.write('%s\n' % item)
+    """
 
-    return copy_list
+
+    with open(easy_split_txt_dir % (args.FDA_mode, args.LB, thresholding, args.round),'w+') as f:
+        for item in easy_split:
+            f.write('%s\n' % item)
+
+    with open(hard_split_txt_dir % (args.FDA_mode, args.LB, thresholding, args.round),'w+') as f:
+        for item in hard_split:
+            f.write('%s\n' % item)
+
+    return copy_list, easy_split
 
 def load_checkpoint_for_evaluation(model, checkpoint, device):
     saved_state_dict = torch.load(checkpoint)
@@ -117,9 +144,26 @@ def get_arguments():
     # ----------------------------------------------------------------#
     parser.add_argument("--FDA-mode", type=str, default="off",
                         help="on: apply the amplitude switch between source and target, off: doesn't apply amplitude switch")
+    parser.add_argument("--LB", type=float, default=0, help="beta for FDA")
+    #parser.add_argument("--MBT", type=bool, default=False)
+    parser.add_argument('--round', type=int, default=0, help='specify the round of self supervised learning')
     # ----------------------------------------------------------------#
     return parser.parse_args()
+"""
+def preprocess_LB(args):
+    check the given args.LB(float) and args.MBT(bool).
 
+    If args.MBT == True:
+        the model is trained on multi band(whose pseudo label is produced by average of three models whose beta is 0.01, 0.05, 0.09)
+    If args.MBT == False:
+        single band(with just one beta) training
+   
+
+    if args.MBT: # if pseudo label is generated on multiband model(average of three models trained with LB=0.01, 0.05, 0.09)
+        args.LB = args.MBT
+    else: # pseudo label is generated on single band model
+        args.LB = str(args.LB).replace('.', '_')
+"""
 def main(args):
 
     # load configuration file 
@@ -127,12 +171,26 @@ def main(args):
     assert args.cfg is not None, 'Missing cfg file'
     cfg_from_file(args.cfg)
 
-    if not os.path.exists('./color_masks_FDA_%s'%(args.FDA_mode)):
-        os.mkdir('./color_masks_FDA_%s'%(args.FDA_mode))
+    if not os.path.exists(save_dir % (args.FDA_mode)):
+        os.mkdir(save_dir % (args.FDA_mode))
     # ----------------------------------------------------------------#
+    args.LB = str(args.LB).replace('.', '_')
     SRC_IMG_MEAN = np.asarray(cfg.TRAIN.IMG_MEAN, dtype=np.float32)
     SRC_IMG_MEAN = torch.reshape(torch.from_numpy(SRC_IMG_MEAN), (1,3,1,1))
-    cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}'
+
+    if args.round == 0:  # first round of SSL
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{args.LB}'
+
+    elif args.round > 0:  # when SSL round is higher than 0
+
+        # SOURCE and TARGET are no longer GTA and Cityscape, but are easy and hard split
+        cfg.SOURCE = 'CityscapesEasy'
+        cfg.TARGET = 'CityscapesHard'
+        cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{args.LB}_THRESH_{str(thresholding)}_ROUND_{args.round - 1}'
+    else:
+        raise KeyError()
+
+    #cfg.EXP_NAME = f'{cfg.SOURCE}2{cfg.TARGET}_{cfg.TRAIN.MODEL}_{cfg.TRAIN.DA_METHOD}_{args.FDA_mode}_LB_{args.LB}'
     # ----------------------------------------------------------------#
     cfg.TEST.SNAPSHOT_DIR[0] = osp.join(cfg.EXP_ROOT_SNAPSHOT, cfg.EXP_NAME)
 
@@ -201,10 +259,10 @@ def main(args):
                 normalizor = 1
             pred_trg_entropy = prob_2_entropy(F.softmax(pred_trg_main))
             entropy_list.append((name[0], pred_trg_entropy.mean().item() * normalizor))
-            colorize_save(pred_trg_main, name[0], args.FDA_mode)
+            colorize_save(pred_trg_main, name[0], args)
 
     # split the enntropy_list into 
-    cluster_subdomain(entropy_list, args.lambda1, args.FDA_mode)
+    cluster_subdomain(entropy_list, args, thresholding)
 
 if __name__ == '__main__':
     args = get_arguments()

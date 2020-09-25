@@ -107,7 +107,7 @@ def train_advent(model, trainloader, targetloader, cfg, args):
     target_label = 1
     trainloader_iter = enumerate(trainloader)
     targetloader_iter = enumerate(targetloader)
-    for i_iter in tqdm(range(cfg.TRAIN.EARLY_STOP)):
+    for i_iter in tqdm(range(cfg.TRAIN.EARLY_STOP + 1)):
 
         # reset optimizers
         optimizer.zero_grad()
