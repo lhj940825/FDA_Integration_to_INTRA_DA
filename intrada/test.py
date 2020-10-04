@@ -41,6 +41,7 @@ def get_arguments():
     parser.add_argument("--LB", type=float, default=0, help="beta for FDA")
     parser.add_argument("--thres", type=bool, default=False, help="thresholding in entropy-ranking")
     parser.add_argument('--round', type=int, default=0, help='specify the round of self supervised learning')
+    parser.add_argument("--MBT", type=bool, default=False)
     # ----------------------------------------------------------------#
     return parser.parse_args()
 
